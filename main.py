@@ -6,6 +6,10 @@ app = FastAPI()
 
 DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
 
+@app.get("/")
+async def root():
+    return {"message": "Read AI Webhook is running!"}
+
 @app.post("/read-ai-webhook")
 async def read_ai_webhook(payload: dict):
     if not DISCORD_WEBHOOK_URL:
