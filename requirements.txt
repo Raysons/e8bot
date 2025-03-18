@@ -1,2 +1,7 @@
-gunicorn
+fastapi
 uvicorn
+gunicorn
+httpx
+requests
+pydantic
+python-dotenv
