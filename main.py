@@ -11,31 +11,54 @@ async def root():
     return {"message": "Read AI Webhook is running!"}
 
 @app.post("/read-ai-webhook")
-async def read_ai_webhook(request: Request):  # Use Request to handle JSON
-    payload = await request.json()  # Explicitly parse JSON
+async def read_ai_webhook(request: Request):
+    payload = await request.json()
 
-    print("Received payload:", payload)  # Debugging: Log the incoming data
-    print("Payload keys:", list(payload.keys()))  # See what keys are available
+    print("Received payload:", payload)  # Debugging
+    print("Payload keys:", list(payload.keys()))  # View available keys
 
     if not DISCORD_WEBHOOK_URL:
         return {"error": "DISCORD_WEBHOOK_URL is not set"}
 
-    # Extract data
-    meeting_title = payload.get("meeting_title")
-    meeting_time = payload.get("meeting_time")
-    meeting_summary = payload.get("meeting_summary")
-    meeting_video_link = payload.get("meeting_video_link")
+    # Ensure the webhook is triggered by a meeting ending
+    if payload.get("trigger") != "meeting_end":
+        return {"error": "Unsupported event type"}
 
-    print(f"Extracted Fields: title={meeting_title}, time={meeting_time}, summary={meeting_summary}, link={meeting_video_link}")
+    # Extract essential details
+    meeting_title = payload.get("title", "Untitled Meeting")
+    start_time = payload.get("start_time", "Unknown Start Time")
+    end_time = payload.get("end_time", "Unknown End Time")
+    summary = payload.get("summary", "No summary available.")
+    report_url = payload.get("report_url", "#")
 
-    if not all([meeting_title, meeting_time, meeting_summary, meeting_video_link]):
-        return {"error": "Missing required fields"}
+    # Participants
+    participants = payload.get("participants", [])
+    participant_names = ", ".join([p["name"] for p in participants]) or "No participants listed"
 
-    # Send to Discord
-    data = {
-        "content": f"📅 **New Meeting:** {meeting_title}\n🕒 {meeting_time}\n📝 {meeting_summary}\n🔗 [Watch Here]({meeting_video_link})"
+    # Action Items
+    action_items = payload.get("action_items", [])
+    action_list = "\n".join([f"- {item['text']}" for item in action_items]) or "No action items."
+
+    # Key Questions
+    key_questions = payload.get("key_questions", [])
+    question_list = "\n".join([f"- {q['text']}" for q in key_questions]) or "No key questions."
+
+    # Format the message for Discord
+    message = {
+        "content": (
+            f"📅 **Meeting Summary: {meeting_title}**\n"
+            f"🕒 **Start:** {start_time}\n"
+            f"🕒 **End:** {end_time}\n"
+            f"👥 **Participants:** {participant_names}\n\n"
+            f"📝 **Summary:**\n{summary}\n\n"
+            f"✅ **Action Items:**\n{action_list}\n\n"
+            f"❓ **Key Questions:**\n{question_list}\n\n"
+            f"🔗 **[Full Report]({report_url})**"
+        )
     }
-    response = requests.post(DISCORD_WEBHOOK_URL, json=data)
+
+    # Send the message to Discord
+    response = requests.post(DISCORD_WEBHOOK_URL, json=message)
 
     if response.status_code == 204:
         return {"status": "success", "message": "Notification sent to Discord"}
